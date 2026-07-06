@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: omni-pulse-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: omnipulse
+      POSTGRES_PASSWORD: omnipulse_dev_password
+      POSTGRES_DB: omnipulse
+    ports:
+      - "5432:5432"
+    volumes:
+      - omni_pulse_pgdata:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnipulse -d omnipulse"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  omni_pulse_pgdata:

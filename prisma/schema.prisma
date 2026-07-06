@@ -1,0 +1,131 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum PlanStatus {
+  PENDING
+  ACTIVE
+  PAUSED
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  BLOCKED
+  COMPLETED
+  FAILED
+  CANCELLED
+  SKIPPED
+}
+
+// Semantic type of a timeline entry — extend freely in later phases
+// (e.g. VOICE_TURN, WEBHOOK_RECEIVED) without touching Plan/Task tables.
+enum EventType {
+  PLAN_CREATED
+  PLAN_STATUS_CHANGED
+  TASK_CREATED
+  TASK_STATUS_CHANGED
+  TASK_UPDATED
+  AGENT_MESSAGE
+  USER_MESSAGE
+  LOG
+  ERROR
+  HUMAN_IN_LOOP_REQUEST
+  HUMAN_IN_LOOP_RESPONSE
+  SYSTEM
+}
+
+enum EventLevel {
+  DEBUG
+  INFO
+  WARNING
+  ERROR
+  CRITICAL
+}
+
+model Plan {
+  id          String     @id @default(cuid())
+  title       String
+  goal        String?    @db.Text
+  description String?    @db.Text
+  status      PlanStatus @default(PENDING)
+  metadata    Json?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  tasks  Task[]
+  events EventStream[]
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("plans")
+}
+
+model Task {
+  id     String @id @default(cuid())
+  planId String
+  plan   Plan   @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  // Self-referential tree
+  parentId String?
+  parent   Task?   @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: Cascade)
+  children Task[]  @relation("TaskHierarchy")
+
+  title       String
+  description String?    @db.Text
+  status      TaskStatus @default(PENDING)
+  position    Int        @default(0) // ordering among siblings
+  depth       Int        @default(0) // denormalized tree depth, convenience for UI
+  progress    Int        @default(0) // 0-100
+  metadata    Json?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  events EventStream[]
+
+  @@index([planId])
+  @@index([parentId])
+  @@index([planId, parentId, position]) // efficient sibling/tree traversal
+  @@index([status])
+  @@map("tasks")
+}
+
+// Append-only. This IS the audit/timeline log — no separate audit-log table.
+// Status-change rows carry {fromStatus, toStatus} in `payload`.
+model EventStream {
+  id     String  @id @default(cuid())
+  planId String
+  plan   Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  taskId String?
+  task   Task?   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  type    EventType
+  level   EventLevel @default(INFO)
+  message String     @db.Text
+  payload Json? // structured detail: status diffs, tool calls, token deltas, etc.
+  actor   String? // "agent" | "user" | "system" | tool/integration name
+
+  createdAt DateTime @default(now())
+
+  @@index([planId, createdAt]) // per-plan chronological timeline
+  @@index([taskId, createdAt]) // per-task chronological timeline
+  @@index([type])
+  @@map("event_streams")
+}
