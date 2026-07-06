@@ -1,9 +1,22 @@
 import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { runPlanExecution } from "@/lib/langgraph";
+import { sendInstagramMessage } from "@/lib/messaging";
+import { summarizePlanOutcome } from "@/lib/plan-summary";
 
-// Signature verification needs Node's `crypto` module, which the Edge
+// Signature verification (and Prisma) need Node's runtime, which the Edge
 // runtime doesn't provide.
 export const runtime = "nodejs";
+
+interface InstagramMessagingEvent {
+  sender?: { id?: string };
+  message?: { text?: string; is_echo?: boolean };
+}
+
+interface InstagramEntry {
+  messaging?: InstagramMessagingEvent[];
+}
 
 /**
  * Meta's webhook verification handshake — echoes back `hub.challenge` when
@@ -51,13 +64,75 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid signature" }, { status: 401 });
   }
 
-  const body = JSON.parse(rawBody) as { entry?: unknown[] };
+  const body = JSON.parse(rawBody) as { entry?: InstagramEntry[] };
 
-  // TODO: parse `messaging` entries per the Instagram Messaging webhook
-  // payload and route into the plan-execution graph (see webhook/line for
-  // the equivalent TODO on the LINE side).
   for (const entry of body.entry ?? []) {
-    console.log("[webhook/instagram] received entry", entry);
+    for (const messagingEvent of entry.messaging ?? []) {
+      const senderId = messagingEvent.sender?.id;
+      const goal = messagingEvent.message?.text?.trim();
+
+      // `is_echo` events are our own outbound messages bounced back through
+      // the same webhook — skip them or every reply would spawn a new Plan.
+      if (!senderId || !goal || messagingEvent.message?.is_echo) {
+        // TODO: handle postback / quick-reply / other event types once the
+        // human-in-the-loop resume path exists.
+        continue;
+      }
+
+      const plan = await prisma.plan.create({
+        data: {
+          title: goal.length > 80 ? `${goal.slice(0, 77)}...` : goal,
+          goal,
+          metadata: { source: "instagram", senderId },
+        },
+      });
+
+      await prisma.eventStream.create({
+        data: {
+          planId: plan.id,
+          type: "PLAN_CREATED",
+          level: "INFO",
+          message: "Plan created from Instagram message",
+          actor: "user",
+        },
+      });
+
+      try {
+        await sendInstagramMessage(senderId, `收到!正在把「${goal}」拆解成任務⋯`);
+      } catch (error) {
+        console.error(`[webhook/instagram] ack send failed for plan ${plan.id}`, error);
+      }
+
+      // Ack quickly; run the graph in the background and push a follow-up
+      // message once it settles rather than blocking the webhook response
+      // on the full plan execution.
+      runPlanExecution({ planId: plan.id, goal })
+        .then(async () => {
+          const summary = await summarizePlanOutcome(plan.id, goal);
+          await prisma.eventStream.create({
+            data: {
+              planId: plan.id,
+              type: "AGENT_MESSAGE",
+              level: "INFO",
+              message: summary,
+              actor: "agent",
+            },
+          });
+          await sendInstagramMessage(senderId, summary);
+        })
+        .catch(async (error: unknown) => {
+          console.error(`[webhook/instagram] plan execution failed for plan ${plan.id}`, error);
+          const message = `處理「${goal}」時發生錯誤:${
+            error instanceof Error ? error.message : "unknown error"
+          }`;
+          await prisma.eventStream
+            .create({
+              data: { planId: plan.id, type: "ERROR", level: "ERROR", message, actor: "agent" },
+            })
+            .catch(() => {});
+          await sendInstagramMessage(senderId, message).catch(() => {});
+        });
+    }
   }
 
   return NextResponse.json({ ok: true });

@@ -2,6 +2,8 @@ import crypto from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { runPlanExecution } from "@/lib/langgraph";
+import { replyToLine, pushToLine } from "@/lib/messaging";
+import { summarizePlanOutcome } from "@/lib/plan-summary";
 
 // Signature verification (and Prisma) need Node's runtime, which the Edge
 // runtime doesn't provide.
@@ -9,6 +11,7 @@ export const runtime = "nodejs";
 
 interface LineEvent {
   type: string;
+  replyToken?: string;
   message?: { type: string; text?: string };
   source?: { userId?: string };
 }
@@ -54,11 +57,13 @@ export async function POST(request: NextRequest) {
     const goal = event.message.text?.trim();
     if (!goal) continue;
 
+    const userId = event.source?.userId;
+
     const plan = await prisma.plan.create({
       data: {
         title: goal.length > 80 ? `${goal.slice(0, 77)}...` : goal,
         goal,
-        metadata: { source: "line", userId: event.source?.userId ?? null },
+        metadata: { source: "line", userId: userId ?? null },
       },
     });
 
@@ -72,11 +77,43 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Ack LINE quickly; run the graph in the background rather than
-    // blocking the webhook response on the full plan execution.
-    runPlanExecution({ planId: plan.id, goal }).catch((error: unknown) => {
-      console.error(`[webhook/line] plan execution failed for plan ${plan.id}`, error);
-    });
+    if (event.replyToken) {
+      try {
+        await replyToLine(event.replyToken, `收到!正在把「${goal}」拆解成任務⋯`);
+      } catch (error) {
+        console.error(`[webhook/line] ack reply failed for plan ${plan.id}`, error);
+      }
+    }
+
+    // Ack LINE quickly; run the graph in the background and push a
+    // follow-up message once it settles rather than blocking the webhook
+    // response on the full plan execution.
+    runPlanExecution({ planId: plan.id, goal })
+      .then(async () => {
+        const summary = await summarizePlanOutcome(plan.id, goal);
+        await prisma.eventStream.create({
+          data: {
+            planId: plan.id,
+            type: "AGENT_MESSAGE",
+            level: "INFO",
+            message: summary,
+            actor: "agent",
+          },
+        });
+        if (userId) await pushToLine(userId, summary);
+      })
+      .catch(async (error: unknown) => {
+        console.error(`[webhook/line] plan execution failed for plan ${plan.id}`, error);
+        const message = `處理「${goal}」時發生錯誤:${
+          error instanceof Error ? error.message : "unknown error"
+        }`;
+        await prisma.eventStream
+          .create({
+            data: { planId: plan.id, type: "ERROR", level: "ERROR", message, actor: "agent" },
+          })
+          .catch(() => {});
+        if (userId) await pushToLine(userId, message).catch(() => {});
+      });
   }
 
   return NextResponse.json({ ok: true });
