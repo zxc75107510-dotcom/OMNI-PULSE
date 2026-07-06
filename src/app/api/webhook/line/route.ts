@@ -22,7 +22,7 @@ interface LineEvent {
  * https://developers.line.biz/en/reference/messaging-api/#signature-validation
  */
 function verifyLineSignature(rawBody: string, signatureHeader: string | null): boolean {
-  const channelSecret = process.env.LINE_CHANNEL_SECRET;
+  const channelSecret = process.env.LINE_CHANNEL_SECRET?.trim();
   if (!channelSecret || !signatureHeader) return false;
 
   const expected = crypto.createHmac("sha256", channelSecret).update(rawBody).digest();
@@ -100,7 +100,13 @@ export async function POST(request: NextRequest) {
             actor: "agent",
           },
         });
-        if (userId) await pushToLine(userId, summary);
+        if (userId) {
+          try {
+            await pushToLine(userId, summary);
+          } catch (error) {
+            console.error(`[webhook/line] summary push failed for plan ${plan.id}`, error);
+          }
+        }
       })
       .catch(async (error: unknown) => {
         console.error(`[webhook/line] plan execution failed for plan ${plan.id}`, error);

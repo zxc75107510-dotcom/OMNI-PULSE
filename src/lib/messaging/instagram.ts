@@ -2,7 +2,9 @@ const GRAPH_API_BASE = "https://graph.facebook.com/v21.0";
 
 /** Sends a DM reply via the Instagram/Messenger Send API using the page access token. */
 export async function sendInstagramMessage(recipientId: string, text: string): Promise<void> {
-  const accessToken = process.env.IG_PAGE_ACCESS_TOKEN;
+  // Trimmed defensively — a stray trailing newline pasted into `.env` would
+  // otherwise produce an invalid query-string value.
+  const accessToken = process.env.IG_PAGE_ACCESS_TOKEN?.trim();
   if (!accessToken) {
     console.warn("[instagram] IG_PAGE_ACCESS_TOKEN not set — skipping send");
     return;

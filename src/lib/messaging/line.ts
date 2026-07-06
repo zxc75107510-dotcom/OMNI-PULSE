@@ -1,7 +1,9 @@
 const LINE_API_BASE = "https://api.line.me/v2/bot/message";
 
 async function callLineMessagingApi(path: "reply" | "push", body: unknown): Promise<void> {
-  const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN;
+  // Trimmed defensively — a stray trailing newline pasted into `.env` would
+  // otherwise produce an invalid `Authorization` header value.
+  const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim();
   if (!accessToken) {
     console.warn(`[line] LINE_CHANNEL_ACCESS_TOKEN not set — skipping ${path}`);
     return;

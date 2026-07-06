@@ -29,7 +29,7 @@ export function GET(request: NextRequest) {
   const token = params.get("hub.verify_token");
   const challenge = params.get("hub.challenge");
 
-  if (mode === "subscribe" && challenge && token === process.env.IG_VERIFY_TOKEN) {
+  if (mode === "subscribe" && challenge && token === process.env.IG_VERIFY_TOKEN?.trim()) {
     return new NextResponse(challenge, { status: 200 });
   }
 
@@ -42,7 +42,7 @@ export function GET(request: NextRequest) {
  * https://developers.facebook.com/docs/messenger-platform/webhooks#security
  */
 function verifyInstagramSignature(rawBody: string, signatureHeader: string | null): boolean {
-  const appSecret = process.env.IG_APP_SECRET;
+  const appSecret = process.env.IG_APP_SECRET?.trim();
   if (!appSecret || !signatureHeader?.startsWith("sha256=")) return false;
 
   const expected = crypto.createHmac("sha256", appSecret).update(rawBody).digest();
@@ -118,7 +118,11 @@ export async function POST(request: NextRequest) {
               actor: "agent",
             },
           });
-          await sendInstagramMessage(senderId, summary);
+          try {
+            await sendInstagramMessage(senderId, summary);
+          } catch (error) {
+            console.error(`[webhook/instagram] summary send failed for plan ${plan.id}`, error);
+          }
         })
         .catch(async (error: unknown) => {
           console.error(`[webhook/instagram] plan execution failed for plan ${plan.id}`, error);
