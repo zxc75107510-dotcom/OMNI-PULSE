@@ -1,17 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  /* Signature palette — "life-sign" teal-cyan pulse against a near-black deck. */
-  --color-void: #08090c;
-  --color-panel: #12151b;
-  --color-panel-raised: #171b23;
-  --color-line: #262b35;
-  --color-pulse: #2ff3d0;
-  --color-pulse-dim: #0e4a44;
-  --color-amber: #ffb454;
-  --color-danger: #ff5d5d;
-  --color-ink: #e8eaed;
-  --color-ink-dim: #868c99;
+  --color-void: #010510;
+  --color-panel: #0f172a;
+  --color-panel-raised: #1e293b;
+  --color-line: #334155;
+  --color-pulse: #a7f3d0;
+  --color-pulse-dim: #2dd4bf;
+  --color-amber: #fbbf24;
+  --color-danger: #fb7185;
+  --color-ink: #f1f5f9;
+  --color-ink-dim: #94a3b8;
+  --color-violet: #1d4ed8;
+  --color-fuchsia: #1e3a8a;
+  --color-orbit: #38bdf8;
 }
 
 @theme inline {
@@ -25,28 +27,55 @@
   --color-danger: var(--color-danger);
   --color-ink: var(--color-ink);
   --color-ink-dim: var(--color-ink-dim);
+  --color-violet: var(--color-violet);
+  --color-fuchsia: var(--color-fuchsia);
+  --color-orbit: var(--color-orbit);
 
   --font-display: var(--font-display);
   --font-body: var(--font-body);
   --font-data: var(--font-data);
 }
 
+html,
 body {
-  background: var(--color-void);
+  min-height: 100%;
+  background-color: #010510;
+  background-image:
+    repeating-radial-gradient(
+      circle at center,
+      rgba(167, 243, 208, 0.1) 0,
+      rgba(167, 243, 208, 0.1) 0.5px,
+      transparent 0.6px,
+      transparent 30px
+    ),
+    radial-gradient(circle at 50% 8%, rgba(29, 78, 216, 0.18), transparent 34rem),
+    radial-gradient(circle at 82% 18%, rgba(30, 58, 138, 0.2), transparent 32rem),
+    linear-gradient(180deg, #010510 0%, #020817 58%, #010510 100%);
   color: var(--color-ink);
 }
 
-/* Breathing glow for an actively-running plan/task — the same rhythm as the
-   header pulse trace, echoed at card scale. */
+body {
+  overflow-x: hidden;
+}
+
+::selection {
+  background: rgba(167, 243, 208, 0.35);
+  color: #f8fafc;
+}
+
 @keyframes breathe-glow {
   0%,
   100% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-pulse) 35%, transparent),
-      0 0 18px -6px color-mix(in srgb, var(--color-pulse) 55%, transparent);
+    box-shadow:
+      0 0 15px rgba(56, 189, 248, 0.3),
+      0 0 34px rgba(167, 243, 208, 0.16),
+      inset 0 1px 0 rgba(248, 250, 252, 0.12);
   }
   50% {
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-pulse) 70%, transparent),
-      0 0 28px -4px color-mix(in srgb, var(--color-pulse) 85%, transparent);
+    box-shadow:
+      0 0 24px rgba(56, 189, 248, 0.48),
+      0 0 58px rgba(167, 243, 208, 0.25),
+      inset 0 1px 0 rgba(248, 250, 252, 0.18);
   }
 }
 
@@ -54,7 +83,6 @@ body {
   animation: breathe-glow 2.6s ease-in-out infinite;
 }
 
-/* Slow-marching gradient border for the active-plan card frame. */
 @keyframes marquee-border {
   to {
     background-position: 200% 0;
@@ -62,20 +90,114 @@ body {
 }
 
 .marquee-border {
-  background-image: linear-gradient(
-    90deg,
-    var(--color-pulse-dim),
-    var(--color-pulse),
-    var(--color-pulse-dim),
-    var(--color-pulse-dim)
-  );
+  background-image: linear-gradient(90deg, #1d4ed8, #38bdf8, #2dd4bf, #1e3a8a);
   background-size: 200% 100%;
   animation: marquee-border 5s linear infinite;
 }
 
+@keyframes scan-sheen {
+  0% {
+    transform: translateX(-130%);
+    opacity: 0;
+  }
+  24%,
+  58% {
+    opacity: 0.68;
+  }
+  100% {
+    transform: translateX(160%);
+    opacity: 0;
+  }
+}
+
+.omni-stage {
+  position: relative;
+  background-color: #010510;
+  background-image:
+    repeating-radial-gradient(
+      circle at center,
+      rgba(167, 243, 208, 0.1) 0,
+      rgba(167, 243, 208, 0.1) 0.5px,
+      transparent 0.6px,
+      transparent 30px
+    );
+}
+
+.omni-stage::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 28% 18%, rgba(29, 78, 216, 0.2), transparent 28rem),
+    radial-gradient(circle at 72% 22%, rgba(30, 58, 138, 0.24), transparent 32rem),
+    radial-gradient(circle at 50% 82%, rgba(56, 189, 248, 0.08), transparent 30rem);
+}
+
+.omni-stage::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, transparent, rgba(248, 250, 252, 0.025) 50%, transparent 51%),
+    radial-gradient(circle at center, transparent 48%, rgba(0, 0, 0, 0.58) 100%);
+  background-size: 100% 4px, 100% 100%;
+}
+
+.glass-panel,
+.glass-panel-strong {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.3);
+  backdrop-filter: blur(12px) saturate(145%);
+}
+
+.glass-sheen {
+  overflow: hidden;
+}
+
+.glass-sheen::before {
+  content: "";
+  position: absolute;
+  inset: -35% auto -35% 0;
+  width: 34%;
+  background: linear-gradient(90deg, transparent, rgba(167, 243, 208, 0.16), transparent);
+  transform: translateX(-130%);
+  animation: scan-sheen 6.8s ease-in-out infinite;
+}
+
+.signal-shadow,
+.text-glow {
+  filter: drop-shadow(0 0 8px rgba(167, 243, 208, 0.7));
+}
+
+.text-glow {
+  text-shadow: 0 0 18px rgba(167, 243, 208, 0.46);
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(167, 243, 208, 0.34) transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(167, 243, 208, 0.32);
+  border-radius: 999px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-breathe-glow,
-  .marquee-border {
+  .marquee-border,
+  .glass-sheen::before {
     animation: none;
   }
 }

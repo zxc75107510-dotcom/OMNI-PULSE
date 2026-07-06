@@ -21,21 +21,23 @@ import type { EventLevel, EventType, PlanStatus, TaskStatus } from "@/generated/
 
 export function PulseDot({ className = "" }: { className?: string }) {
   return (
-    <span className="relative inline-flex h-2 w-2">
-      <span className="motion-safe:absolute motion-safe:inline-flex motion-safe:h-full motion-safe:w-full motion-safe:animate-ping motion-safe:rounded-full motion-safe:bg-pulse motion-safe:opacity-60" />
-      <span className={`relative inline-flex h-2 w-2 rounded-full bg-pulse ${className}`} />
+    <span className="relative inline-flex h-2.5 w-2.5">
+      <span className="motion-safe:absolute motion-safe:inline-flex motion-safe:h-full motion-safe:w-full motion-safe:animate-ping motion-safe:rounded-full motion-safe:bg-teal-200 motion-safe:opacity-60" />
+      <span
+        className={`relative inline-flex h-2.5 w-2.5 rounded-full bg-teal-200 drop-shadow-[0_0_8px_rgba(167,243,208,0.7)] ${className}`}
+      />
     </span>
   );
 }
 
 const TASK_STATUS_STYLE: Record<TaskStatus, { icon: LucideIcon; className: string }> = {
-  PENDING: { icon: Circle, className: "text-ink-dim/70" },
-  IN_PROGRESS: { icon: Circle, className: "text-pulse" },
-  BLOCKED: { icon: AlertTriangle, className: "text-amber" },
-  COMPLETED: { icon: CheckCircle2, className: "text-pulse" },
-  FAILED: { icon: XCircle, className: "text-danger" },
-  CANCELLED: { icon: MinusCircle, className: "text-ink-dim/50" },
-  SKIPPED: { icon: MinusCircle, className: "text-ink-dim/50" },
+  PENDING: { icon: Circle, className: "text-slate-500" },
+  IN_PROGRESS: { icon: Circle, className: "text-teal-200" },
+  BLOCKED: { icon: AlertTriangle, className: "text-amber drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]" },
+  COMPLETED: { icon: CheckCircle2, className: "text-teal-200 drop-shadow-[0_0_8px_rgba(167,243,208,0.7)]" },
+  FAILED: { icon: XCircle, className: "text-danger drop-shadow-[0_0_8px_rgba(251,113,133,0.7)]" },
+  CANCELLED: { icon: MinusCircle, className: "text-slate-600" },
+  SKIPPED: { icon: MinusCircle, className: "text-slate-600" },
 };
 
 export function TaskStatusIcon({ status }: { status: TaskStatus }) {
@@ -52,27 +54,27 @@ export function TaskStatusIcon({ status }: { status: TaskStatus }) {
 }
 
 const PLAN_STATUS_LABEL: Record<PlanStatus, string> = {
-  PENDING: "待啟動",
-  ACTIVE: "執行中",
-  PAUSED: "已暫停",
-  COMPLETED: "已完成",
-  FAILED: "失敗",
-  CANCELLED: "已取消",
+  PENDING: "STAGED",
+  ACTIVE: "RUNNING",
+  PAUSED: "PAUSED",
+  COMPLETED: "SEALED",
+  FAILED: "FAULT",
+  CANCELLED: "DROPPED",
 };
 
 const PLAN_STATUS_STYLE: Record<PlanStatus, string> = {
-  PENDING: "text-ink-dim border-line",
-  ACTIVE: "text-pulse border-pulse-dim",
-  PAUSED: "text-amber border-amber/40",
-  COMPLETED: "text-pulse/80 border-pulse-dim/60",
-  FAILED: "text-danger border-danger/40",
-  CANCELLED: "text-ink-dim/70 border-line",
+  PENDING: "text-slate-400",
+  ACTIVE: "text-teal-200 drop-shadow-[0_0_8px_rgba(167,243,208,0.7)]",
+  PAUSED: "text-amber drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]",
+  COMPLETED: "text-cyan-300 drop-shadow-[0_0_8px_rgba(167,243,208,0.7)]",
+  FAILED: "text-danger drop-shadow-[0_0_8px_rgba(251,113,133,0.7)]",
+  CANCELLED: "text-slate-500",
 };
 
 export function PlanStatusBadge({ status }: { status: PlanStatus }) {
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 font-data text-[11px] uppercase tracking-wider ${PLAN_STATUS_STYLE[status]}`}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border border-slate-700/50 bg-[rgba(15,23,42,0.6)] px-3 py-1 font-data text-[10px] uppercase tracking-[0.2em] shadow-[0_0_15px_rgba(56,189,248,0.3)] backdrop-blur-md ${PLAN_STATUS_STYLE[status]}`}
     >
       {status === "ACTIVE" ? <PulseDot /> : null}
       {PLAN_STATUS_LABEL[status]}
@@ -96,18 +98,31 @@ const EVENT_TYPE_ICON: Record<EventType, LucideIcon> = {
 };
 
 const EVENT_LEVEL_STYLE: Record<EventLevel, string> = {
-  DEBUG: "text-ink-dim/60",
-  INFO: "text-ink-dim",
+  DEBUG: "text-slate-500",
+  INFO: "text-teal-200",
   WARNING: "text-amber",
   ERROR: "text-danger",
   CRITICAL: "text-danger",
 };
 
+const EVENT_TEXT_STYLE: Record<EventLevel, string> = {
+  DEBUG: "text-slate-500",
+  INFO: "text-slate-100",
+  WARNING: "text-amber drop-shadow-[0_0_8px_rgba(251,191,36,0.7)]",
+  ERROR: "text-danger drop-shadow-[0_0_8px_rgba(251,113,133,0.7)]",
+  CRITICAL: "text-danger drop-shadow-[0_0_8px_rgba(251,113,133,0.7)]",
+};
+
 export function EventTypeIcon({ type, level }: { type: EventType; level: EventLevel }) {
   const Icon = EVENT_TYPE_ICON[type];
-  return <Icon className={`h-3.5 w-3.5 shrink-0 ${EVENT_LEVEL_STYLE[level]}`} strokeWidth={2} />;
+  return (
+    <Icon
+      className={`h-3.5 w-3.5 shrink-0 drop-shadow-[0_0_8px_rgba(167,243,208,0.7)] ${EVENT_LEVEL_STYLE[level]}`}
+      strokeWidth={2}
+    />
+  );
 }
 
 export function eventLevelTextClass(level: EventLevel): string {
-  return EVENT_LEVEL_STYLE[level];
+  return EVENT_TEXT_STYLE[level];
 }
